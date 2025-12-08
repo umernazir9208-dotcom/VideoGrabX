@@ -13,7 +13,51 @@ st.markdown("""
     * { font-family: 'Poppins', sans-serif; }
     .stApp { background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%); color: #ffffff; }
     .block-container { padding-top: 1.5rem !important; padding-bottom: 2rem !important; max-width: 1400px; }
-    @media (max-width: 768px) { .logo-text { font-size: 2.5em !important; letter-spacing: 1px !important; } .logo-icon { font-size: 2em !important; } .tagline { font-size: 0.9em !important; padding: 0 10px !important; } .downloader-card { padding: 25px 15px !important; margin: 20px 10px !important; } .guide-section { padding: 30px 20px !important; margin: 30px 10px !important; } .section-title { font-size: 1.8em !important; } .platform-tag { font-size: 0.85em !important; padding: 8px 16px !important; margin: 5px !important; } .stButton>button, .stDownloadButton>button { font-size: 1em !important; padding: 14px 20px !important; } .feature-grid { grid-template-columns: 1fr !important; } .stTabs [data-baseweb="tab"] { font-size: 0.9em !important; padding: 10px 15px !important; } }
+    @media (max-width: 768px) { 
+        .logo-text { font-size: 2.2em !important; letter-spacing: 1px !important; } 
+        .logo-icon { font-size: 1.8em !important; } 
+        .logo-container { padding: 20px 30px !important; }
+        .tagline { font-size: 0.85em !important; padding: 0 15px !important; margin-top: 10px !important; } 
+        .downloader-card { padding: 20px 12px !important; margin: 15px 5px !important; } 
+        .guide-section { padding: 25px 15px !important; margin: 25px 5px !important; } 
+        .section-title { font-size: 1.5em !important; margin-bottom: 20px !important; } 
+        .platform-tags { margin: 20px 0 !important; }
+        .platform-tag { font-size: 0.75em !important; padding: 6px 12px !important; margin: 4px !important; display: inline-block !important; } 
+        .stButton>button, .stDownloadButton>button { font-size: 0.95em !important; padding: 12px 16px !important; } 
+        .feature-grid { grid-template-columns: 1fr !important; gap: 15px !important; } 
+        .feature-card { padding: 25px 20px !important; }
+        .stTabs [data-baseweb="tab-list"] { gap: 5px !important; flex-wrap: wrap !important; }
+        .stTabs [data-baseweb="tab"] { font-size: 0.8em !important; padding: 10px 12px !important; margin: 3px !important; flex: 1 1 auto !important; min-width: fit-content !important; white-space: nowrap !important; }
+        .video-title { font-size: 1em !important; }
+        .video-info { font-size: 0.85em !important; }
+        .guide-title { font-size: 1.8em !important; }
+        .logo-section { padding: 25px 15px 20px !important; }
+        .stTextInput input, .stTextArea textarea { font-size: 0.95em !important; padding: 14px !important; }
+        .stSelectbox { font-size: 0.9em !important; }
+        .feature-icon { font-size: 2.5em !important; }
+        .feature-title { font-size: 1.1em !important; }
+        .feature-desc { font-size: 0.9em !important; }
+    }
+    @media (max-width: 480px) {
+        .logo-text { font-size: 1.8em !important; }
+        .logo-icon { font-size: 1.5em !important; }
+        .logo-container { padding: 15px 25px !important; }
+        .tagline { font-size: 0.75em !important; line-height: 1.4 !important; }
+        .section-title { font-size: 1.3em !important; }
+        .platform-tag { font-size: 0.7em !important; padding: 5px 10px !important; margin: 3px !important; }
+        .downloader-card { padding: 15px 10px !important; }
+        .stTabs [data-baseweb="tab"] { font-size: 0.75em !important; padding: 8px 10px !important; }
+        .stButton>button, .stDownloadButton>button { font-size: 0.9em !important; padding: 10px 14px !important; }
+        .guide-title { font-size: 1.5em !important; }
+        .feature-icon { font-size: 2em !important; }
+    }
+    @media (min-width: 1400px) {
+        .block-container { max-width: 1600px !important; }
+    }
+    @media (min-width: 1800px) {
+        .block-container { max-width: 1800px !important; }
+        .feature-grid { grid-template-columns: repeat(3, 1fr) !important; }
+    }
     .logo-section { text-align: center; padding: 40px 20px 30px; animation: fadeInDown 0.8s ease-out; }
     @keyframes fadeInDown { from { opacity: 0; transform: translateY(-30px); } to { opacity: 1; transform: translateY(0); } }
     .logo-container { display: inline-block; background: rgba(255,255,255,0.15); padding: 25px 50px; border-radius: 30px; backdrop-filter: blur(20px); box-shadow: 0 20px 60px rgba(0,0,0,0.3); border: 3px solid rgba(255,255,255,0.3); }
@@ -41,11 +85,11 @@ st.markdown("""
     .loading-container { text-align: center; padding: 30px; background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius: 20px; margin: 20px 0; }
     .spinner { border: 5px solid #f3f3f3; border-top: 5px solid #667eea; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin: 0 auto 15px auto; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    .platform-tags { text-align: center; margin: 30px 0; }
-    .platform-tag { display: inline-block; background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 12px 28px; border-radius: 30px; margin: 8px; font-weight: 700; font-size: 1em; box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4); transition: all 0.3s ease; }
-    .platform-tag:hover { transform: scale(1.1); box-shadow: 0 8px 30px rgba(102, 126, 234, 0.5); }
-    .stTabs [data-baseweb="tab-list"] { gap: 15px; background: transparent; justify-content: center; }
-    .stTabs [data-baseweb="tab"] { background: rgba(255,255,255,0.8); border-radius: 15px; padding: 15px 30px; font-weight: 700; color: #2c3e50; font-size: 1.05em; transition: all 0.3s ease; border: 2px solid transparent; }
+    .platform-tags { text-align: center; margin: 30px 0; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; padding: 0 10px; }
+    .platform-tag { display: inline-block; background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 12px 28px; border-radius: 30px; margin: 8px; font-weight: 700; font-size: 1em; box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4); transition: all 0.3s ease; white-space: nowrap; }
+    .platform-tag:hover { transform: scale(1.05); box-shadow: 0 8px 30px rgba(102, 126, 234, 0.5); }
+    .stTabs [data-baseweb="tab-list"] { gap: 10px; background: transparent; justify-content: center; flex-wrap: wrap; }
+    .stTabs [data-baseweb="tab"] { background: rgba(255,255,255,0.8); border-radius: 15px; padding: 15px 30px; font-weight: 700; color: #2c3e50; font-size: 1.05em; transition: all 0.3s ease; border: 2px solid transparent; white-space: nowrap; }
     .stTabs [data-baseweb="tab"]:hover { background: rgba(255,255,255,0.95); transform: translateY(-2px); }
     .stTabs [data-baseweb="tab"][aria-selected="true"] { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-color: rgba(255,255,255,0.4); box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5); }
     .guide-section { background: rgba(255, 255, 255, 0.97); padding: 50px 40px; border-radius: 30px; margin: 40px auto; box-shadow: 0 25px 70px rgba(0,0,0,0.25); border: 2px solid rgba(255,255,255,0.5); }
