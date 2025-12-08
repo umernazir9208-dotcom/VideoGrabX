@@ -490,6 +490,59 @@ with tab3:
 
 st.markdown("</div>", unsafe_allow_html=True)
 
+# Quick Tips Section
+st.markdown("""
+<div class='guide-section'>
+    <h2 class='guide-title'>💡 Pro Tips & Tricks</h2>
+    <div class='tip-box'>
+        <strong>🎯 Step 1: Copy Video URL</strong><br>
+        Open your favorite video on YouTube, TikTok, Instagram, or any supported platform. Click the <code>Share</code> button and copy the video link. Paste it in the URL field above!
+    </div>
+    <div class='tip-box'>
+        <strong>⚡ Step 2: Choose Quality</strong><br>
+        For YouTube videos, select your preferred quality: <code>Best</code> for maximum quality, <code>1080p</code> for HD, <code>720p</code> for balanced size/quality, or <code>480p</code> for smaller files.
+    </div>
+    <div class='tip-box'>
+        <strong>🎵 Step 3: Audio Only Option</strong><br>
+        Want just the audio? Switch to <code>Audio (MP3)</code> format to extract music, podcasts, or soundtracks from any video. Perfect for music lovers!
+    </div>
+    <div class='tip-box'>
+        <strong>📋 Batch Downloads</strong><br>
+        Need multiple videos? Use the <code>Batch Download</code> tab! Paste one URL per line and download up to 50 videos at once. Great for playlists and collections!
+    </div>
+    <div class='tip-box'>
+        <strong>🔒 Privacy First</strong><br>
+        Your downloads are processed locally. We don't store your URLs or videos on our servers. Your privacy is 100% protected!
+    </div>
+    <div class='tip-box'>
+        <strong>⚠️ Troubleshooting</strong><br>
+        If download fails, try: (1) Check if URL is correct, (2) Update yt-dlp: <code>pip install -U yt-dlp</code>, (3) Some videos may be geo-restricted or private.
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Supported Platforms Section
+st.markdown("""
+<div class='guide-section'>
+    <h2 class='guide-title'>🌐 Supported Platforms</h2>
+    <div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 25px 0;'>
+        <div style='background: linear-gradient(135deg, #FF0000, #CC0000); padding: 20px; border-radius: 15px; text-align: center; color: white; font-weight: 700; box-shadow: 0 5px 20px rgba(255,0,0,0.3);'>📺 YouTube</div>
+        <div style='background: linear-gradient(135deg, #1877F2, #0d5dbf); padding: 20px; border-radius: 15px; text-align: center; color: white; font-weight: 700; box-shadow: 0 5px 20px rgba(24,119,242,0.3);'>💥 Facebook</div>
+        <div style='background: linear-gradient(135deg, #E4405F, #c13584); padding: 20px; border-radius: 15px; text-align: center; color: white; font-weight: 700; box-shadow: 0 5px 20px rgba(228,64,95,0.3);'>📷 Instagram</div>
+        <div style='background: linear-gradient(135deg, #000000, #fe2c55); padding: 20px; border-radius: 15px; text-align: center; color: white; font-weight: 700; box-shadow: 0 5px 20px rgba(254,44,85,0.3);'>🎵 TikTok</div>
+        <div style='background: linear-gradient(135deg, #1DA1F2, #0d8bd9); padding: 20px; border-radius: 15px; text-align: center; color: white; font-weight: 700; box-shadow: 0 5px 20px rgba(29,161,242,0.3);'>🦅 Twitter/X</div>
+        <div style='background: linear-gradient(135deg, #1ab7ea, #1589c2); padding: 20px; border-radius: 15px; text-align: center; color: white; font-weight: 700; box-shadow: 0 5px 20px rgba(26,183,234,0.3);'>🎬 Vimeo</div>
+        <div style='background: linear-gradient(135deg, #FF0000, #990000); padding: 20px; border-radius: 15px; text-align: center; color: white; font-weight: 700; box-shadow: 0 5px 20px rgba(255,0,0,0.3);'>📹 Twitch</div>
+        <div style='background: linear-gradient(135deg, #FF4500, #cc3700); padding: 20px; border-radius: 15px; text-align: center; color: white; font-weight: 700; box-shadow: 0 5px 20px rgba(255,69,0,0.3);'>🔶 Reddit</div>
+        <div style='background: linear-gradient(135deg, #0077B5, #005582); padding: 20px; border-radius: 15px; text-align: center; color: white; font-weight: 700; box-shadow: 0 5px 20px rgba(0,119,181,0.3);'>💼 LinkedIn</div>
+        <div style='background: linear-gradient(135deg, #667eea, #764ba2); padding: 20px; border-radius: 15px; text-align: center; color: white; font-weight: 700; box-shadow: 0 5px 20px rgba(102,126,234,0.3);'>🌐 +1000 More</div>
+    </div>
+    <div style='text-align: center; color: #2c3e50; font-weight: 600; margin-top: 20px; font-size: 1.1em;'>
+        ✅ Dailymotion • Soundcloud • Bandcamp • Mixcloud • Spotify • Tumblr & Many More!
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
 # Download History
 if st.session_state.download_history:
     st.markdown("<div class='guide-section'>", unsafe_allow_html=True)
@@ -502,7 +555,91 @@ if st.session_state.download_history:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # Features Section
-st.markdown("<div class='guide-section'><h2 class='guide-title'>✨ Why Choose VidGrabX?</h2><div class='feature-grid'><div class='feature-card'><div class='feature-icon'>⚡</div><div class='feature-title'>Lightning Fast</div><div class='feature-desc'>Optimized for speed</div></div><div class='feature-card'><div class='feature-icon'>📋</div><div class='feature-title'>Batch Downloads</div><div class='feature-desc'>Multiple videos</div></div><div class='feature-card'><div class='feature-icon'>🎵</div><div class='feature-title'>Audio Extraction</div><div class='feature-desc'>MP3, M4A, WAV</div></div><div class='feature-card'><div class='feature-icon'>🌐</div><div class='feature-title'>1000+ Sites</div><div class='feature-desc'>All platforms</div></div><div class='feature-card'><div class='feature-icon'>🔒</div><div class='feature-title'>100% Secure</div><div class='feature-desc'>No registration</div></div><div class='feature-card'><div class='feature-icon'>📱</div><div class='feature-title'>Responsive</div><div class='feature-desc'>All devices</div></div></div></div>", unsafe_allow_html=True)
+st.markdown("""
+<div class='guide-section'>
+    <h2 class='guide-title'>✨ Why Choose VidGrabX?</h2>
+    <div class='feature-grid'>
+        <div class='feature-card'>
+            <div class='feature-icon'>⚡</div>
+            <div class='feature-title'>Lightning Fast</div>
+            <div class='feature-desc'>Multi-threaded downloads with optimized performance</div>
+        </div>
+        <div class='feature-card'>
+            <div class='feature-icon'>📋</div>
+            <div class='feature-title'>Batch Downloads</div>
+            <div class='feature-desc'>Download multiple videos simultaneously</div>
+        </div>
+        <div class='feature-card'>
+            <div class='feature-icon'>🎵</div>
+            <div class='feature-title'>Audio Extraction</div>
+            <div class='feature-desc'>Extract MP3, M4A, WAV from any video</div>
+        </div>
+        <div class='feature-card'>
+            <div class='feature-icon'>🌐</div>
+            <div class='feature-title'>1000+ Sites</div>
+            <div class='feature-desc'>Support for all major platforms</div>
+        </div>
+        <div class='feature-card'>
+            <div class='feature-icon'>🔒</div>
+            <div class='feature-title'>100% Secure</div>
+            <div class='feature-desc'>No registration, ads, or tracking</div>
+        </div>
+        <div class='feature-card'>
+            <div class='feature-icon'>📱</div>
+            <div class='feature-title'>Fully Responsive</div>
+            <div class='feature-desc'>Works on mobile, tablet, PC, TV</div>
+        </div>
+        <div class='feature-card'>
+            <div class='feature-icon'>🎨</div>
+            <div class='feature-title'>HD Quality</div>
+            <div class='feature-desc'>Up to 4K/8K video downloads</div>
+        </div>
+        <div class='feature-card'>
+            <div class='feature-icon'>🚀</div>
+            <div class='feature-title'>No Limits</div>
+            <div class='feature-desc'>Unlimited downloads, forever free</div>
+        </div>
+        <div class='feature-card'>
+            <div class='feature-icon'>💾</div>
+            <div class='feature-title'>Direct Download</div>
+            <div class='feature-desc'>Save directly to your device</div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# FAQ Section
+st.markdown("""
+<div class='guide-section'>
+    <h2 class='guide-title'>❓ Frequently Asked Questions</h2>
+    <div style='margin: 25px 0;'>
+        <div style='background: white; padding: 25px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); border-left: 5px solid #667eea;'>
+            <h3 style='color: #667eea; margin-bottom: 10px; font-size: 1.2em;'>🤔 Is VidGrabX free to use?</h3>
+            <p style='color: #2c3e50; margin: 0; line-height: 1.8;'>Yes! VidGrabX is 100% free with no hidden costs, subscriptions, or premium plans. Download unlimited videos forever!</p>
+        </div>
+        <div style='background: white; padding: 25px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); border-left: 5px solid #28a745;'>
+            <h3 style='color: #28a745; margin-bottom: 10px; font-size: 1.2em;'>🔐 Is it safe and legal?</h3>
+            <p style='color: #2c3e50; margin: 0; line-height: 1.8;'>VidGrabX is safe to use. However, please respect copyright laws and only download videos you have permission to download or for personal use.</p>
+        </div>
+        <div style='background: white; padding: 25px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); border-left: 5px solid #ffc107;'>
+            <h3 style='color: #ffc107; margin-bottom: 10px; font-size: 1.2em;'>⚡ How fast are downloads?</h3>
+            <p style='color: #2c3e50; margin: 0; line-height: 1.8;'>Download speed depends on your internet connection and the source server. We optimize for maximum speed without compromising quality!</p>
+        </div>
+        <div style='background: white; padding: 25px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); border-left: 5px solid #dc3545;'>
+            <h3 style='color: #dc3545; margin-bottom: 10px; font-size: 1.2em;'>📱 Does it work on mobile?</h3>
+            <p style='color: #2c3e50; margin: 0; line-height: 1.8;'>Absolutely! VidGrabX is fully responsive and works perfectly on smartphones, tablets, laptops, and desktop computers.</p>
+        </div>
+        <div style='background: white; padding: 25px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); border-left: 5px solid #17a2b8;'>
+            <h3 style='color: #17a2b8; margin-bottom: 10px; font-size: 1.2em;'>🎵 Can I extract audio only?</h3>
+            <p style='color: #2c3e50; margin: 0; line-height: 1.8;'>Yes! Use our Audio Extractor tab to convert any video to MP3, M4A, or WAV format. Perfect for music and podcasts!</p>
+        </div>
+        <div style='background: white; padding: 25px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); border-left: 5px solid #6f42c1;'>
+            <h3 style='color: #6f42c1; margin-bottom: 10px; font-size: 1.2em;'>🌍 Which platforms are supported?</h3>
+            <p style='color: #2c3e50; margin: 0; line-height: 1.8;'>We support 1000+ platforms including YouTube, TikTok, Facebook, Instagram, Twitter, Vimeo, Dailymotion, Twitch, Reddit, and many more!</p>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # Footer
 st.markdown("<div style='text-align:center; color:#fff; padding: 50px; background: rgba(0,0,0,0.3); border-radius: 25px; margin-top: 50px; backdrop-filter: blur(15px);'><div style='font-size:3.5em; margin-bottom: 20px; filter: drop-shadow(0 0 15px rgba(255,255,255,0.4));'>🎯 <strong>VidGrabX</strong></div><div style='font-size:1.3em; opacity:0.95; margin-bottom: 20px; font-weight: 600; line-height: 1.6;'>The Ultimate Free Video Downloader<br>Powered by yt-dlp • Streamlit • Python • FFmpeg</div><div style='font-size:1.1em; opacity:0.9; margin: 20px 0;'>🌐 YouTube • TikTok • Facebook • Instagram • Twitter • Vimeo • 1000+ More</div><div style='font-size:1em; opacity:0.8; margin-top: 25px; padding-top: 25px; border-top: 2px solid rgba(255,255,255,0.2);'>© 2025 VidGrabX • Free & Open Source Forever 🚀<br><small style='opacity: 0.7;'>Made with ❤️ for video enthusiasts worldwide</small></div></div>", unsafe_allow_html=True)
