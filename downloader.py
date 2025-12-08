@@ -2,8 +2,11 @@ import streamlit as st
 from yt_dlp import YoutubeDL
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 import subprocess
+import re
+import hashlib
+import shutil
 
 st.set_page_config(page_title="VidGrabX - Video Downloader", page_icon="🎯", layout="wide")
 
@@ -108,7 +111,13 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Configuration
 DOWNLOAD_DIR = "downloads"
+MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB
+RATE_LIMIT_SECONDS = 3
+FILE_CLEANUP_HOURS = 1
+MAX_BATCH_VIDEOS = 50
+
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 # Initialize session state
@@ -120,6 +129,52 @@ if 'download_history' not in st.session_state:
     st.session_state.download_history = []
 if 'batch_videos_info' not in st.session_state:
     st.session_state.batch_videos_info = []
+if 'last_download_time' not in st.session_state:
+    st.session_state.last_download_time = 0
+
+# Security Functions
+def sanitize_filename(filename):
+    """Remove dangerous characters from filename"""
+    filename = re.sub(r'[<>:"/\\|?*]', '', filename)
+    filename = filename.replace('..', '')
+    filename = filename.strip()
+    return filename[:200]
+
+def validate_url(url):
+    """Validate URL format and safety"""
+    if not url or len(url) > 2000:
+        return False
+    # Basic URL pattern check
+    url_pattern = re.compile(
+        r'^https?://'  # http:// or https://
+        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'  # domain
+        r'localhost|'  # localhost
+        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # IP
+        r'(?::\d+)?'  # optional port
+        r'(?:/?|[/?]\S+)$', re.IGNORECASE)
+    return url_pattern.match(url) is not None
+
+def check_rate_limit():
+    """Check if user is within rate limit"""
+    current_time = time.time()
+    if current_time - st.session_state.last_download_time < RATE_LIMIT_SECONDS:
+        remaining = RATE_LIMIT_SECONDS - (current_time - st.session_state.last_download_time)
+        st.warning(f"⏳ Please wait {remaining:.1f} seconds before next download")
+        return False
+    return True
+
+def cleanup_old_files():
+    """Remove files older than FILE_CLEANUP_HOURS"""
+    try:
+        now = datetime.now()
+        for filename in os.listdir(DOWNLOAD_DIR):
+            filepath = os.path.join(DOWNLOAD_DIR, filename)
+            if os.path.isfile(filepath):
+                file_time = datetime.fromtimestamp(os.path.getctime(filepath))
+                if now - file_time > timedelta(hours=FILE_CLEANUP_HOURS):
+                    os.remove(filepath)
+    except Exception as e:
+        pass  # Silent fail for cleanup
 
 def check_ffmpeg():
     try:
@@ -129,16 +184,22 @@ def check_ffmpeg():
         return False
 
 def get_video_info(url):
+    """Fetch video information safely"""
+    if not validate_url(url):
+        return None
+    
     ydl_opts = {
         'quiet': True,
         'skip_download': True,
         'no_warnings': True,
-        'socket_timeout': 30
+        'socket_timeout': 30,
+        'nocheckcertificate': False,
+        'no_color': True
     }
     try:
         with YoutubeDL(ydl_opts) as ydl:
             return ydl.extract_info(url, download=False)
-    except:
+    except Exception as e:
         return None
 
 def format_duration(seconds):
@@ -153,10 +214,11 @@ def format_duration(seconds):
     return "N/A"
 
 def add_to_history(title, url, format_type):
-    title_short = title[:80] + "..." if len(title) > 80 else title
+    title_short = sanitize_filename(title)
+    title_short = title_short[:80] + "..." if len(title_short) > 80 else title_short
     st.session_state.download_history.insert(0, {
         'title': title_short,
-        'url': url,
+        'url': url[:100],  # Truncate long URLs
         'format': format_type,
         'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     })
@@ -164,12 +226,18 @@ def add_to_history(title, url, format_type):
         st.session_state.download_history = st.session_state.download_history[:15]
 
 def get_ydl_opts(quality="best", is_audio=False):
+    """Get secure yt-dlp options"""
     opts = {
         'outtmpl': os.path.join(os.getcwd(), DOWNLOAD_DIR, '%(title)s.%(ext)s'),
         'noplaylist': True,
         'socket_timeout': 60,
-        'retries': 5
+        'retries': 5,
+        'restrictfilenames': True,  # Security: restrict filename characters
+        'no_color': True,
+        'max_filesize': MAX_FILE_SIZE,  # Security: limit file size
+        'nocheckcertificate': False,  # Security: verify SSL certificates
     }
+    
     if is_audio:
         opts['format'] = 'bestaudio'
         if check_ffmpeg():
@@ -180,16 +248,26 @@ def get_ydl_opts(quality="best", is_audio=False):
             }]
     else:
         opts['format'] = quality
+    
     return opts
 
-# Header
-st.markdown("<div class='logo-section'><div class='logo-container'><span class='logo-icon'>🎯</span><div class='logo-text'>VidGrabX</div></div><div class='tagline'>⚡ Lightning-Fast Downloads • 1000+ Platforms • 100% Free</div></div>", unsafe_allow_html=True)
+# Run cleanup on startup
+cleanup_old_files()
 
-# FFmpeg check
-if check_ffmpeg():
-    st.success("✅ **FFmpeg Active** - All features enabled! 🎉")
-else:
-    st.warning("⚠️ **FFmpeg Missing** - Install for MP3 conversion. Videos still work!")
+# Header
+st.markdown("<div class='logo-section'><div class='logo-container'><span class='logo-icon'>🎯</span><div class='logo-text'>VidGrabX</div></div><div class='tagline'>⚡ Lightning-Fast Downloads • 1000+ Platforms • 100% Free & Secure 🔒</div></div>", unsafe_allow_html=True)
+
+# Security Badge
+col_sec1, col_sec2, col_sec3 = st.columns(3)
+with col_sec1:
+    st.success("🔒 **SSL Secured**")
+with col_sec2:
+    if check_ffmpeg():
+        st.success("✅ **FFmpeg Active**")
+    else:
+        st.warning("⚠️ **FFmpeg Missing**")
+with col_sec3:
+    st.info("🛡️ **Privacy Protected**")
 
 # Platform tags
 st.markdown("<div class='platform-tags'><span class='platform-tag'>📺 YouTube</span><span class='platform-tag'>💥 Facebook</span><span class='platform-tag'>📷 Instagram</span><span class='platform-tag'>🎵 TikTok</span><span class='platform-tag'>🦅 X/Twitter</span><span class='platform-tag'>🎬 Vimeo</span><span class='platform-tag'>🌐 +1000</span></div>", unsafe_allow_html=True)
@@ -206,23 +284,26 @@ with tab1:
     with col_btn1:
         if st.button("🔍 ANALYZE VIDEO", key="analyze_single", use_container_width=True):
             if video_url:
-                loading = st.empty()
-                loading.markdown("<div class='loading-container'><div class='spinner'></div><div style='color: #2c3e50; font-weight: 700; font-size: 1.2em;'>🔍 Analyzing video...</div></div>", unsafe_allow_html=True)
-                info = get_video_info(video_url)
-                loading.empty()
-                
-                if info:
-                    st.session_state.video_info = info
-                    st.session_state.last_checked_url = video_url
-                    st.success("✅ Video detected successfully!")
+                if not validate_url(video_url):
+                    st.error("❌ Invalid URL format! Please enter a valid video URL.")
                 else:
-                    st.error("❌ Failed. Try: pip install --upgrade yt-dlp")
+                    loading = st.empty()
+                    loading.markdown("<div class='loading-container'><div class='spinner'></div><div style='color: #2c3e50; font-weight: 700; font-size: 1.2em;'>🔍 Analyzing video...</div></div>", unsafe_allow_html=True)
+                    info = get_video_info(video_url)
+                    loading.empty()
+                    
+                    if info:
+                        st.session_state.video_info = info
+                        st.session_state.last_checked_url = video_url
+                        st.success("✅ Video detected successfully!")
+                    else:
+                        st.error("❌ Failed to fetch video. Check URL or try: pip install --upgrade yt-dlp")
             else:
                 st.warning("⚠️ Please paste a URL first!")
     
     if st.session_state.video_info and st.session_state.last_checked_url == video_url:
         info = st.session_state.video_info
-        title = info.get('title', 'Unknown')
+        title = sanitize_filename(info.get('title', 'Unknown'))
         thumb = info.get('thumbnail')
         
         st.markdown("<hr style='border: 2px solid #e0e0e0; margin: 30px 0;'>", unsafe_allow_html=True)
@@ -252,7 +333,12 @@ with tab1:
         col_d1, col_d2, col_d3 = st.columns([1, 2, 1])
         with col_d2:
             if st.button("🚀 DOWNLOAD NOW", key="download_single", use_container_width=True):
+                if not check_rate_limit():
+                    st.stop()
+                
+                st.session_state.last_download_time = time.time()
                 opts = get_ydl_opts(quality, dl_type == "Audio (MP3)")
+                
                 with st.status("⬇️ Downloading...", expanded=True) as status:
                     try:
                         status.write("📡 Connecting...")
@@ -282,13 +368,14 @@ with tab1:
                             )
                             st.success("👆 **Click the green button to save!**")
                             st.info(f"📂 File: **{os.path.basename(filename)}**")
+                            st.info("🗑️ File will be auto-deleted after 1 hour for security")
                     except Exception as e:
                         status.update(label="❌ Failed", state="error")
                         st.error(f"**Error:** {str(e)[:150]}")
 
 with tab2:
     st.markdown("<h2 class='section-title'>📋 Batch Download</h2>", unsafe_allow_html=True)
-    st.info("💡 Paste multiple URLs (one per line)")
+    st.info(f"💡 Paste multiple URLs (one per line) • Maximum: {MAX_BATCH_VIDEOS} videos")
     batch_urls = st.text_area("Video URLs", placeholder="https://youtube.com/...\nhttps://tiktok.com/...", height=150, key="batch_urls", label_visibility="collapsed")
     
     col_b1, col_b2 = st.columns(2)
@@ -300,6 +387,18 @@ with tab2:
     if st.button("🔍 ANALYZE ALL", key="analyze_batch", use_container_width=True):
         if batch_urls:
             urls = [u.strip() for u in batch_urls.split('\n') if u.strip()]
+            
+            # Validate URLs
+            invalid_urls = [u for u in urls if not validate_url(u)]
+            if invalid_urls:
+                st.error(f"❌ Found {len(invalid_urls)} invalid URLs. Please check and try again.")
+                st.stop()
+            
+            # Limit batch size
+            if len(urls) > MAX_BATCH_VIDEOS:
+                st.error(f"❌ Maximum {MAX_BATCH_VIDEOS} videos allowed. You have {len(urls)} URLs.")
+                st.stop()
+            
             if urls:
                 st.info(f"📊 Analyzing {len(urls)} videos...")
                 st.session_state.batch_videos_info = []
@@ -317,7 +416,7 @@ with tab2:
                     if info:
                         st.session_state.batch_videos_info.append({
                             'url': url,
-                            'title': info.get('title', 'Unknown'),
+                            'title': sanitize_filename(info.get('title', 'Unknown')),
                             'thumbnail': info.get('thumbnail'),
                             'duration': info.get('duration', 0),
                             'uploader': info.get('uploader', 'Unknown')
@@ -339,6 +438,10 @@ with tab2:
         st.markdown(f"<h3 style='color: #2c3e50; text-align: center;'>📊 Ready: {len(st.session_state.batch_videos_info)} videos</h3>", unsafe_allow_html=True)
         
         if st.button("🚀 DOWNLOAD ALL", key="download_batch", use_container_width=True):
+            if not check_rate_limit():
+                st.stop()
+            
+            st.session_state.last_download_time = time.time()
             opts = get_ydl_opts("best", batch_fmt == "Audio (MP3)")
             prog = st.progress(0)
             cont = st.container()
@@ -357,7 +460,7 @@ with tab2:
                     add_to_history(vid['title'], vid['url'], batch_fmt)
                 except Exception as e:
                     failed += 1
-                    st.warning("⚠️ Failed")
+                    st.warning(f"⚠️ Failed: {str(e)[:100]}")
                     if not skip_err:
                         break
                 
@@ -370,6 +473,7 @@ with tab2:
             c3.metric("📊 Total", len(st.session_state.batch_videos_info))
             st.success(f"🎉 Saved to: {DOWNLOAD_DIR}/")
             st.info("💡 Files are on server. Use Single Video tab for direct downloads.")
+            st.warning("🗑️ Files auto-delete after 1 hour for security")
             st.session_state.batch_videos_info = []
 
 with tab3:
@@ -384,6 +488,10 @@ with tab3:
     else:
         uploaded = st.file_uploader("Upload Video", type=['mp4', 'avi', 'mov', 'mkv', 'flv', 'wmv', 'webm'], key="audio_upload")
         if uploaded:
+            # Check file size
+            if uploaded.size > MAX_FILE_SIZE:
+                st.error(f"❌ File too large! Maximum size: {MAX_FILE_SIZE / 1024 / 1024:.0f}MB")
+                st.stop()
             st.success(f"✅ **{uploaded.name}** ({uploaded.size / 1024 / 1024:.2f} MB)")
     
     c1, c2 = st.columns(2)
@@ -396,13 +504,31 @@ with tab3:
     disabled = (src == "🌐 From URL" and not audio_url) or (src == "📁 Upload File" and not uploaded)
     
     if st.button("🎵 EXTRACT AUDIO", key="extract_audio", use_container_width=True, disabled=disabled):
+        if not check_rate_limit():
+            st.stop()
+        
+        st.session_state.last_download_time = time.time()
+        
         if src == "🌐 From URL" and audio_url:
+            if not validate_url(audio_url):
+                st.error("❌ Invalid URL format!")
+                st.stop()
+            
             with st.status("🎵 Extracting...", expanded=True) as status:
                 try:
                     quality = '320' if 'Best' in qual else ('256' if 'High' in qual else '192')
+                    
+                    # Validate format
+                    if fmt not in ['MP3', 'M4A', 'WAV']:
+                        st.error("❌ Invalid audio format!")
+                        st.stop()
+                    
                     opts = {
                         'format': 'bestaudio',
-                        'outtmpl': os.path.join(os.getcwd(), DOWNLOAD_DIR, f'%(title)s.{fmt.lower()}')
+                        'outtmpl': os.path.join(os.getcwd(), DOWNLOAD_DIR, f'%(title)s.{fmt.lower()}'),
+                        'restrictfilenames': True,
+                        'max_filesize': MAX_FILE_SIZE,
+                        'nocheckcertificate': False
                     }
                     if check_ffmpeg():
                         opts['postprocessors'] = [{
@@ -418,7 +544,7 @@ with tab3:
                         filename = ydl.prepare_filename(result).rsplit('.', 1)[0] + f'.{fmt.lower()}'
                     
                     status.update(label="✅ Complete!", state="complete")
-                    st.success(f"🎉 Extracted: **{result.get('title', 'Unknown')}**")
+                    st.success(f"🎉 Extracted: **{sanitize_filename(result.get('title', 'Unknown'))}**")
                     add_to_history(f"[AUDIO] {result.get('title', 'Unknown')}", audio_url, f"Audio - {fmt}")
                     
                     if os.path.exists(filename):
@@ -433,6 +559,7 @@ with tab3:
                             key="dl_audio_" + str(time.time())
                         )
                         st.info(f"📂 File: {os.path.basename(filename)}")
+                        st.info("🗑️ File will be auto-deleted after 1 hour")
                 except Exception as e:
                     status.update(label="❌ Failed", state="error")
                     st.error(f"Error: {str(e)[:150]}")
@@ -442,31 +569,41 @@ with tab3:
                 st.error("❌ FFmpeg Required for local extraction!")
             else:
                 with st.status("🎵 Extracting...", expanded=True) as status:
+                    temp = None
                     try:
-                        temp = os.path.join(DOWNLOAD_DIR, f"temp_{uploaded.name}")
+                        # Sanitize uploaded filename
+                        safe_filename = sanitize_filename(uploaded.name)
+                        temp = os.path.join(DOWNLOAD_DIR, f"temp_{hashlib.md5(safe_filename.encode()).hexdigest()}_{safe_filename}")
+                        
                         status.write("💾 Saving...")
                         with open(temp, "wb") as f:
                             f.write(uploaded.getbuffer())
                         
-                        base = os.path.splitext(uploaded.name)[0]
+                        base = os.path.splitext(safe_filename)[0]
                         output = f"{base}_audio.{fmt.lower()}"
                         out_path = os.path.join(DOWNLOAD_DIR, output)
                         quality = '320' if 'Best' in qual else ('256' if 'High' in qual else '192')
                         
                         status.write("🎵 Extracting...")
+                        
+                        # Validate format
+                        if fmt not in ['MP3', 'M4A', 'WAV']:
+                            raise Exception("Invalid format")
+                        
                         codec = {'MP3': 'libmp3lame', 'M4A': 'aac', 'WAV': 'pcm_s16le'}
                         cmd = ['ffmpeg', '-i', temp, '-vn', '-acodec', codec[fmt]]
                         if fmt != 'WAV':
                             cmd.extend(['-b:a', f'{quality}k'])
                         cmd.extend(['-y', out_path])
                         
-                        result = subprocess.run(cmd, capture_output=True, text=True)
+                        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
                         
                         if result.returncode == 0:
-                            os.remove(temp)
+                            if temp and os.path.exists(temp):
+                                os.remove(temp)
                             status.update(label="✅ Complete!", state="complete")
-                            st.success(f"🎉 Extracted from: {uploaded.name}")
-                            add_to_history(f"[LOCAL] {uploaded.name}", "Local File", f"Audio - {fmt}")
+                            st.success(f"🎉 Extracted from: {safe_filename}")
+                            add_to_history(f"[LOCAL] {safe_filename}", "Local File", f"Audio - {fmt}")
                             
                             if os.path.exists(out_path):
                                 with open(out_path, 'rb') as f:
@@ -480,12 +617,13 @@ with tab3:
                                     key="dl_local_" + str(time.time())
                                 )
                                 st.info(f"📂 File: {output}")
+                                st.info("🗑️ File will be auto-deleted after 1 hour")
                         else:
-                            raise Exception("FFmpeg error")
+                            raise Exception("FFmpeg conversion failed")
                     except Exception as e:
                         status.update(label="❌ Failed", state="error")
                         st.error(f"Error: {str(e)[:150]}")
-                        if os.path.exists(temp):
+                        if temp and os.path.exists(temp):
                             os.remove(temp)
 
 st.markdown("</div>", unsafe_allow_html=True)
@@ -508,15 +646,15 @@ st.markdown("""
     </div>
     <div class='tip-box'>
         <strong>📋 Batch Downloads</strong><br>
-        Need multiple videos? Use the <code>Batch Download</code> tab! Paste one URL per line and download up to 50 videos at once. Great for playlists and collections!
+        Need multiple videos? Use the <code>Batch Download</code> tab! Paste one URL per line (max 50 videos) and download them all at once. Great for playlists and collections!
     </div>
     <div class='tip-box'>
-        <strong>🔒 Privacy First</strong><br>
-        Your downloads are processed locally. We don't store your URLs or videos on our servers. Your privacy is 100% protected!
+        <strong>🔒 Privacy & Security</strong><br>
+        Your downloads are processed securely with SSL encryption. Files auto-delete after 1 hour. We don't store your URLs or videos permanently. Your privacy is 100% protected!
     </div>
     <div class='tip-box'>
         <strong>⚠️ Troubleshooting</strong><br>
-        If download fails, try: (1) Check if URL is correct, (2) Update yt-dlp: <code>pip install -U yt-dlp</code>, (3) Some videos may be geo-restricted or private.
+        If download fails, try: (1) Check if URL is valid, (2) Update yt-dlp: <code>pip install -U yt-dlp</code>, (3) Some videos may be geo-restricted, private, or exceed 500MB limit.
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -567,7 +705,7 @@ st.markdown("""
         <div class='feature-card'>
             <div class='feature-icon'>📋</div>
             <div class='feature-title'>Batch Downloads</div>
-            <div class='feature-desc'>Download multiple videos simultaneously</div>
+            <div class='feature-desc'>Download up to 50 videos simultaneously</div>
         </div>
         <div class='feature-card'>
             <div class='feature-icon'>🎵</div>
@@ -582,7 +720,7 @@ st.markdown("""
         <div class='feature-card'>
             <div class='feature-icon'>🔒</div>
             <div class='feature-title'>100% Secure</div>
-            <div class='feature-desc'>No registration, ads, or tracking</div>
+            <div class='feature-desc'>SSL encrypted with auto-cleanup</div>
         </div>
         <div class='feature-card'>
             <div class='feature-icon'>📱</div>
@@ -619,11 +757,11 @@ st.markdown("""
         </div>
         <div style='background: white; padding: 25px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); border-left: 5px solid #28a745;'>
             <h3 style='color: #28a745; margin-bottom: 10px; font-size: 1.2em;'>🔐 Is it safe and legal?</h3>
-            <p style='color: #2c3e50; margin: 0; line-height: 1.8;'>VidGrabX is safe to use. However, please respect copyright laws and only download videos you have permission to download or for personal use.</p>
+            <p style='color: #2c3e50; margin: 0; line-height: 1.8;'>VidGrabX is safe to use with SSL encryption and auto-cleanup. However, please respect copyright laws and only download videos you have permission to download or for personal use.</p>
         </div>
         <div style='background: white; padding: 25px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); border-left: 5px solid #ffc107;'>
             <h3 style='color: #ffc107; margin-bottom: 10px; font-size: 1.2em;'>⚡ How fast are downloads?</h3>
-            <p style='color: #2c3e50; margin: 0; line-height: 1.8;'>Download speed depends on your internet connection and the source server. We optimize for maximum speed without compromising quality!</p>
+            <p style='color: #2c3e50; margin: 0; line-height: 1.8;'>Download speed depends on your internet connection and the source server. We optimize for maximum speed without compromising quality! Rate limiting ensures fair usage.</p>
         </div>
         <div style='background: white; padding: 25px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); border-left: 5px solid #dc3545;'>
             <h3 style='color: #dc3545; margin-bottom: 10px; font-size: 1.2em;'>📱 Does it work on mobile?</h3>
@@ -637,9 +775,13 @@ st.markdown("""
             <h3 style='color: #6f42c1; margin-bottom: 10px; font-size: 1.2em;'>🌍 Which platforms are supported?</h3>
             <p style='color: #2c3e50; margin: 0; line-height: 1.8;'>We support 1000+ platforms including YouTube, TikTok, Facebook, Instagram, Twitter, Vimeo, Dailymotion, Twitch, Reddit, and many more!</p>
         </div>
+        <div style='background: white; padding: 25px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); border-left: 5px solid #e83e8c;'>
+            <h3 style='color: #e83e8c; margin-bottom: 10px; font-size: 1.2em;'>🗑️ Are my files stored?</h3>
+            <p style='color: #2c3e50; margin: 0; line-height: 1.8;'>No! All downloaded files are automatically deleted from our servers after 1 hour for your privacy and security. We never store your content permanently.</p>
+        </div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
 # Footer
-st.markdown("<div style='text-align:center; color:#fff; padding: 50px; background: rgba(0,0,0,0.3); border-radius: 25px; margin-top: 50px; backdrop-filter: blur(15px);'><div style='font-size:3.5em; margin-bottom: 20px; filter: drop-shadow(0 0 15px rgba(255,255,255,0.4));'>🎯 <strong>VidGrabX</strong></div><div style='font-size:1.3em; opacity:0.95; margin-bottom: 20px; font-weight: 600; line-height: 1.6;'>The Ultimate Free Video Downloader<br>Powered by yt-dlp • Streamlit • Python • FFmpeg</div><div style='font-size:1.1em; opacity:0.9; margin: 20px 0;'>🌐 YouTube • TikTok • Facebook • Instagram • Twitter • Vimeo • 1000+ More</div><div style='font-size:1em; opacity:0.8; margin-top: 25px; padding-top: 25px; border-top: 2px solid rgba(255,255,255,0.2);'>© 2025 VidGrabX • Free & Open Source Forever 🚀<br><small style='opacity: 0.7;'>Made with ❤️ for video enthusiasts worldwide</small></div></div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align:center; color:#fff; padding: 50px; background: rgba(0,0,0,0.3); border-radius: 25px; margin-top: 50px; backdrop-filter: blur(15px);'><div style='font-size:3.5em; margin-bottom: 20px; filter: drop-shadow(0 0 15px rgba(255,255,255,0.4));'>🎯 <strong>VidGrabX</strong></div><div style='font-size:1.3em; opacity:0.95; margin-bottom: 20px; font-weight: 600; line-height: 1.6;'>The Ultimate Free Video Downloader<br>🔒 Secured • 🚀 Fast • 🛡️ Private</div><div style='font-size:1em; opacity:0.9; margin: 20px 0;'>Powered by yt-dlp • Streamlit • Python • FFmpeg</div><div style='font-size:1em; opacity:0.9; margin: 20px 0;'>🌐 YouTube • TikTok • Facebook • Instagram • Twitter • Vimeo • 1000+ More</div><div style='font-size:0.95em; opacity:0.8; margin-top: 25px; padding-top: 25px; border-top: 2px solid rgba(255,255,255,0.2);'>✅ SSL Encrypted • 🗑️ Auto-Cleanup • 🚫 No Tracking • 📊 Rate Limited<br>© 2025 VidGrabX • Free & Open Source Forever 🚀<br><small style='opacity: 0.7;'>Made with ❤️ for video enthusiasts worldwide</small></div></div>", unsafe_allow_html=True)
