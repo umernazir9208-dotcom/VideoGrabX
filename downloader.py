@@ -78,7 +78,46 @@ st.markdown("""
     @keyframes pulse-download { 0%, 100% { transform: scale(1); box-shadow: 0 12px 35px rgba(40, 167, 69, 0.6); } 50% { transform: scale(1.05); box-shadow: 0 15px 45px rgba(40, 167, 69, 0.8); } }
     .stDownloadButton>button:hover { background: linear-gradient(135deg, #20c997 0%, #28a745 100%) !important; transform: translateY(-5px) scale(1.05) !important; box-shadow: 0 20px 50px rgba(40, 167, 69, 0.9) !important; }
     .stSelectbox label { color: #2c3e50 !important; font-weight: 700 !important; font-size: 1.05em !important; }
+    .stSelectbox div[data-baseweb="select"] { color: #2c3e50 !important; }
+    .stSelectbox div[data-baseweb="select"] > div { color: #2c3e50 !important; background: white !important; }
+    .stRadio label { color: #2c3e50 !important; font-weight: 600 !important; }
+    .stRadio div[role="radiogroup"] label { color: #2c3e50 !important; }
+    .stRadio div[role="radiogroup"] > label > div { color: #2c3e50 !important; }
+    .stCheckbox label { color: #2c3e50 !important; font-weight: 600 !important; }
+    .stCheckbox span { color: #2c3e50 !important; }
+    .stFileUploader label { color: #2c3e50 !important; font-weight: 700 !important; }
+    .stFileUploader section { background: white !important; border: 3px dashed #667eea !important; }
+    .stFileUploader section small { color: #6c757d !important; }
+    .stTextInput label, .stTextArea label { color: #2c3e50 !important; font-weight: 700 !important; }
     .stSuccess { background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%) !important; border-left: 6px solid #28a745 !important; border-radius: 12px !important; color: #155724 !important; font-weight: 600 !important; }
+    .stError { background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%) !important; border-left: 6px solid #dc3545 !important; border-radius: 12px !important; color: #721c24 !important; font-weight: 600 !important; }
+    .stInfo { background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%) !important; border-left: 6px solid #17a2b8 !important; border-radius: 12px !important; color: #0c5460 !important; font-weight: 600 !important; }
+    .stWarning { background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%) !important; border-left: 6px solid #ffc107 !important; border-radius: 12px !important; color: #856404 !important; font-weight: 600 !important; }
+    .video-title { color: #2c3e50; font-size: 1.2em; font-weight: 700; margin: 10px 0 5px 0; }
+    .video-info { color: #6c757d; font-size: 0.95em; font-weight: 500; }
+    .loading-container { text-align: center; padding: 30px; background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius: 20px; margin: 20px 0; }
+    .spinner { border: 5px solid #f3f3f3; border-top: 5px solid #667eea; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin: 0 auto 15px auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .platform-tags { text-align: center; margin: 30px 0; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; padding: 0 10px; }
+    .platform-tag { display: inline-block; background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 12px 28px; border-radius: 30px; margin: 8px; font-weight: 700; font-size: 1em; box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4); transition: all 0.3s ease; white-space: nowrap; }
+    .platform-tag:hover { transform: scale(1.05); box-shadow: 0 8px 30px rgba(102, 126, 234, 0.5); }
+    .stTabs [data-baseweb="tab-list"] { gap: 10px; background: transparent; justify-content: center; flex-wrap: wrap; }
+    .stTabs [data-baseweb="tab"] { background: rgba(255,255,255,0.8); border-radius: 15px; padding: 15px 30px; font-weight: 700; color: #2c3e50; font-size: 1.05em; transition: all 0.3s ease; border: 2px solid transparent; white-space: nowrap; }
+    .stTabs [data-baseweb="tab"]:hover { background: rgba(255,255,255,0.95); transform: translateY(-2px); }
+    .stTabs [data-baseweb="tab"][aria-selected="true"] { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-color: rgba(255,255,255,0.4); box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5); }
+    .guide-section { background: rgba(255, 255, 255, 0.97); padding: 50px 40px; border-radius: 30px; margin: 40px auto; box-shadow: 0 25px 70px rgba(0,0,0,0.25); border: 2px solid rgba(255,255,255,0.5); }
+    .guide-title { background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 2.5em; font-weight: 900; text-align: center; margin-bottom: 40px; }
+    .tip-box { background: linear-gradient(135deg, #e7f3ff, #f0e7ff); padding: 25px; border-radius: 15px; margin: 20px 0; border-left: 6px solid #667eea; box-shadow: 0 5px 20px rgba(0,0,0,0.1); color: #2c3e50; font-weight: 500; line-height: 1.8; }
+    .tip-box strong { color: #667eea; font-size: 1.15em; }
+    .tip-box code { background: rgba(102, 126, 234, 0.1); padding: 4px 8px; border-radius: 5px; color: #764ba2; font-weight: 600; }
+    .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; margin: 35px 0; }
+    .feature-card { background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); padding: 35px; border-radius: 25px; text-align: center; box-shadow: 0 12px 35px rgba(0,0,0,0.1); transition: all 0.4s ease; border: 3px solid rgba(102, 126, 234, 0.1); }
+    .feature-card:hover { transform: translateY(-15px); box-shadow: 0 25px 60px rgba(102, 126, 234, 0.3); border-color: rgba(102, 126, 234, 0.3); }
+    .feature-icon { font-size: 3.5em; margin-bottom: 15px; }
+    .feature-title { font-weight: 800; color: #2c3e50; margin-bottom: 10px; font-size: 1.3em; }
+    .feature-desc { color: #6c757d; font-size: 1em; font-weight: 500; }
+    .stProgress > div > div { background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 10px; }
+    #MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}
     .stError { background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%) !important; border-left: 6px solid #dc3545 !important; border-radius: 12px !important; color: #721c24 !important; font-weight: 600 !important; }
     .stInfo { background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%) !important; border-left: 6px solid #17a2b8 !important; border-radius: 12px !important; color: #0c5460 !important; font-weight: 600 !important; }
     .stWarning { background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%) !important; border-left: 6px solid #ffc107 !important; border-radius: 12px !important; color: #856404 !important; font-weight: 600 !important; }
