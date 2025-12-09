@@ -230,9 +230,10 @@ def get_video_info(url):
         'skip_download': True,
         'no_warnings': True,
         'socket_timeout': 30,
-        'nocheckcertificate': False,
+        'nocheckcertificate': True,
         'no_color': True,
         'extract_flat': False,
+        'geo_bypass': True,
         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -241,7 +242,8 @@ def get_video_info(url):
         },
         'extractor_args': {
             'youtube': {
-                'player_client': ['android', 'web'],
+                'player_client': ['android', 'ios'],
+                'player_skip': ['webpage'],
             }
         },
     }
@@ -288,10 +290,12 @@ def get_ydl_opts(quality="best", is_audio=False):
         'restrictfilenames': True,
         'no_color': True,
         'max_filesize': MAX_FILE_SIZE,
-        'nocheckcertificate': False,
+        'nocheckcertificate': True,  # Changed to True for better compatibility
         'ignoreerrors': False,
         'quiet': False,
         'no_warnings': False,
+        'geo_bypass': True,
+        'geo_bypass_country': 'US',
         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'referer': 'https://www.youtube.com/',
         'http_headers': {
@@ -304,8 +308,9 @@ def get_ydl_opts(quality="best", is_audio=False):
         },
         'extractor_args': {
             'youtube': {
-                'player_client': ['android', 'web'],
-                'player_skip': ['webpage', 'configs'],
+                'player_client': ['android', 'ios', 'web', 'mweb'],
+                'player_skip': ['webpage'],
+                'skip': ['dash', 'hls'],
             }
         },
     }
@@ -320,21 +325,21 @@ def get_ydl_opts(quality="best", is_audio=False):
             }]
             opts['keepvideo'] = False
     else:
-        # Map quality selection to format
+        # Use simpler format strings that work better
         if quality == "2160":
-            opts['format'] = 'bestvideo[height<=2160]+bestaudio/best[height<=2160]'
+            opts['format'] = 'bestvideo[height<=2160][ext=mp4]+bestaudio[ext=m4a]/best[height<=2160]'
         elif quality == "1440":
-            opts['format'] = 'bestvideo[height<=1440]+bestaudio/best[height<=1440]'
+            opts['format'] = 'bestvideo[height<=1440][ext=mp4]+bestaudio[ext=m4a]/best[height<=1440]'
         elif quality == "1080":
-            opts['format'] = 'bestvideo[height<=1080]+bestaudio/best[height<=1080]'
+            opts['format'] = 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080]'
         elif quality == "720":
-            opts['format'] = 'bestvideo[height<=720]+bestaudio/best[height<=720]'
+            opts['format'] = 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]'
         elif quality == "480":
-            opts['format'] = 'bestvideo[height<=480]+bestaudio/best[height<=480]'
+            opts['format'] = 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480]'
         elif quality == "360":
-            opts['format'] = 'bestvideo[height<=360]+bestaudio/best[height<=360]'
+            opts['format'] = 'bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360]'
         else:
-            opts['format'] = 'bestvideo+bestaudio/best'
+            opts['format'] = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best'
         
         if check_ffmpeg():
             opts['postprocessors'] = [{
@@ -342,6 +347,9 @@ def get_ydl_opts(quality="best", is_audio=False):
                 'preferedformat': 'mp4'
             }]
             opts['merge_output_format'] = 'mp4'
+        else:
+            # If no FFmpeg, use simpler format
+            opts['format'] = 'best[ext=mp4]/best'
     
     return opts
 
