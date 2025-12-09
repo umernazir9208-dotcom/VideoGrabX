@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 import subprocess
 import re
 import hashlib
-import shutil
 
 st.set_page_config(page_title="VidGrabX - Video Downloader", page_icon="🎯", layout="wide")
 
@@ -144,13 +143,12 @@ def validate_url(url):
     """Validate URL format and safety"""
     if not url or len(url) > 2000:
         return False
-    # Basic URL pattern check
     url_pattern = re.compile(
-        r'^https?://'  # http:// or https://
-        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'  # domain
-        r'localhost|'  # localhost
-        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # IP
-        r'(?::\d+)?'  # optional port
+        r'^https?://'
+        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'
+        r'localhost|'
+        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'
+        r'(?::\d+)?'
         r'(?:/?|[/?]\S+)$', re.IGNORECASE)
     return url_pattern.match(url) is not None
 
@@ -174,7 +172,7 @@ def cleanup_old_files():
                 if now - file_time > timedelta(hours=FILE_CLEANUP_HOURS):
                     os.remove(filepath)
     except Exception as e:
-        pass  # Silent fail for cleanup
+        pass
 
 def check_ffmpeg():
     try:
@@ -194,12 +192,14 @@ def get_video_info(url):
         'no_warnings': True,
         'socket_timeout': 30,
         'nocheckcertificate': False,
-        'no_color': True
+        'no_color': True,
+        'extract_flat': False
     }
     try:
         with YoutubeDL(ydl_opts) as ydl:
             return ydl.extract_info(url, download=False)
     except Exception as e:
+        st.error(f"Error fetching video info: {str(e)}")
         return None
 
 def format_duration(seconds):
@@ -218,7 +218,7 @@ def add_to_history(title, url, format_type):
     title_short = title_short[:80] + "..." if len(title_short) > 80 else title_short
     st.session_state.download_history.insert(0, {
         'title': title_short,
-        'url': url[:100],  # Truncate long URLs
+        'url': url[:100],
         'format': format_type,
         'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     })
@@ -227,27 +227,55 @@ def add_to_history(title, url, format_type):
 
 def get_ydl_opts(quality="best", is_audio=False):
     """Get secure yt-dlp options"""
+    base_path = os.path.join(os.getcwd(), DOWNLOAD_DIR)
+    
     opts = {
-        'outtmpl': os.path.join(os.getcwd(), DOWNLOAD_DIR, '%(title)s.%(ext)s'),
+        'outtmpl': os.path.join(base_path, '%(title)s.%(ext)s'),
         'noplaylist': True,
         'socket_timeout': 60,
         'retries': 5,
-        'restrictfilenames': True,  # Security: restrict filename characters
+        'fragment_retries': 5,
+        'restrictfilenames': True,
         'no_color': True,
-        'max_filesize': MAX_FILE_SIZE,  # Security: limit file size
-        'nocheckcertificate': False,  # Security: verify SSL certificates
+        'max_filesize': MAX_FILE_SIZE,
+        'nocheckcertificate': False,
+        'ignoreerrors': False,
+        'quiet': False,
+        'no_warnings': False,
     }
     
     if is_audio:
-        opts['format'] = 'bestaudio'
+        opts['format'] = 'bestaudio/best'
         if check_ffmpeg():
             opts['postprocessors'] = [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
                 'preferredquality': '192'
             }]
+            opts['keepvideo'] = False
     else:
-        opts['format'] = quality
+        # Map quality selection to format
+        if quality == "2160":
+            opts['format'] = 'bestvideo[height<=2160]+bestaudio/best[height<=2160]'
+        elif quality == "1440":
+            opts['format'] = 'bestvideo[height<=1440]+bestaudio/best[height<=1440]'
+        elif quality == "1080":
+            opts['format'] = 'bestvideo[height<=1080]+bestaudio/best[height<=1080]'
+        elif quality == "720":
+            opts['format'] = 'bestvideo[height<=720]+bestaudio/best[height<=720]'
+        elif quality == "480":
+            opts['format'] = 'bestvideo[height<=480]+bestaudio/best[height<=480]'
+        elif quality == "360":
+            opts['format'] = 'bestvideo[height<=360]+bestaudio/best[height<=360]'
+        else:
+            opts['format'] = 'bestvideo+bestaudio/best'
+        
+        if check_ffmpeg():
+            opts['postprocessors'] = [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4'
+            }]
+            opts['merge_output_format'] = 'mp4'
     
     return opts
 
@@ -325,9 +353,14 @@ with tab1:
             dl_type = st.selectbox("📦 Format", ["Video", "Audio (MP3)"], key="single_fmt")
         with col_q:
             if dl_type == "Video":
-                quality = st.selectbox("🎯 Quality", ["best", "best[height<=1080]", "best[height<=720]", "best[height<=480]"], key="single_qual")
+                quality = st.selectbox("🎯 Quality", 
+                    ["2160 (4K)", "1440 (2K)", "1080 (FHD)", "720 (HD)", "480 (SD)", "360", "Best Available"], 
+                    key="single_qual",
+                    index=2)
+                # Extract just the number
+                quality_value = quality.split()[0] if quality != "Best Available" else "best"
             else:
-                quality = "bestaudio"
+                quality_value = "bestaudio"
         
         st.markdown("<br>", unsafe_allow_html=True)
         col_d1, col_d2, col_d3 = st.columns([1, 2, 1])
@@ -337,7 +370,7 @@ with tab1:
                     st.stop()
                 
                 st.session_state.last_download_time = time.time()
-                opts = get_ydl_opts(quality, dl_type == "Audio (MP3)")
+                opts = get_ydl_opts(quality_value, dl_type == "Audio (MP3)")
                 
                 with st.status("⬇️ Downloading...", expanded=True) as status:
                     try:
@@ -345,10 +378,15 @@ with tab1:
                         with YoutubeDL(opts) as ydl:
                             status.write("⬇️ Downloading...")
                             result = ydl.extract_info(video_url, download=True)
+                            
+                            # Get the actual filename
                             if dl_type == "Audio (MP3)" and check_ffmpeg():
-                                filename = ydl.prepare_filename(result).rsplit('.', 1)[0] + '.mp3'
+                                filename = ydl.prepare_filename(result)
+                                filename = os.path.splitext(filename)[0] + '.mp3'
                             else:
                                 filename = ydl.prepare_filename(result)
+                                if not filename.endswith('.mp4') and check_ffmpeg():
+                                    filename = os.path.splitext(filename)[0] + '.mp4'
                         
                         status.update(label="✅ Complete!", state="complete")
                         st.success(f"🎉 Downloaded: **{title}**")
@@ -369,32 +407,43 @@ with tab1:
                             st.success("👆 **Click the green button to save!**")
                             st.info(f"📂 File: **{os.path.basename(filename)}**")
                             st.info("🗑️ File will be auto-deleted after 1 hour for security")
+                        else:
+                            st.error("❌ File not found after download. Please try again.")
                     except Exception as e:
                         status.update(label="❌ Failed", state="error")
-                        st.error(f"**Error:** {str(e)[:150]}")
+                        error_msg = str(e)
+                        st.error(f"**Error:** {error_msg[:300]}")
+                        if "ffmpeg" in error_msg.lower():
+                            st.warning("⚠️ FFmpeg may be required. Install it for better compatibility.")
 
 with tab2:
     st.markdown("<h2 class='section-title'>📋 Batch Download</h2>", unsafe_allow_html=True)
     st.info(f"💡 Paste multiple URLs (one per line) • Maximum: {MAX_BATCH_VIDEOS} videos")
     batch_urls = st.text_area("Video URLs", placeholder="https://youtube.com/...\nhttps://tiktok.com/...", height=150, key="batch_urls", label_visibility="collapsed")
     
-    col_b1, col_b2 = st.columns(2)
+    col_b1, col_b2, col_b3 = st.columns(3)
     with col_b1:
         batch_fmt = st.selectbox("Format", ["Video", "Audio (MP3)"], key="batch_fmt")
     with col_b2:
+        if batch_fmt == "Video":
+            batch_quality = st.selectbox("Quality", 
+                ["2160", "1440", "1080", "720", "480", "360", "best"], 
+                key="batch_qual",
+                index=2)
+        else:
+            batch_quality = "bestaudio"
+    with col_b3:
         skip_err = st.checkbox("⭐ Skip Failed", value=True, key="skip_err")
     
     if st.button("🔍 ANALYZE ALL", key="analyze_batch", use_container_width=True):
         if batch_urls:
             urls = [u.strip() for u in batch_urls.split('\n') if u.strip()]
             
-            # Validate URLs
             invalid_urls = [u for u in urls if not validate_url(u)]
             if invalid_urls:
                 st.error(f"❌ Found {len(invalid_urls)} invalid URLs. Please check and try again.")
                 st.stop()
             
-            # Limit batch size
             if len(urls) > MAX_BATCH_VIDEOS:
                 st.error(f"❌ Maximum {MAX_BATCH_VIDEOS} videos allowed. You have {len(urls)} URLs.")
                 st.stop()
@@ -442,7 +491,7 @@ with tab2:
                 st.stop()
             
             st.session_state.last_download_time = time.time()
-            opts = get_ydl_opts("best", batch_fmt == "Audio (MP3)")
+            opts = get_ydl_opts(batch_quality if batch_fmt == "Video" else "bestaudio", batch_fmt == "Audio (MP3)")
             prog = st.progress(0)
             cont = st.container()
             success = 0
@@ -488,7 +537,6 @@ with tab3:
     else:
         uploaded = st.file_uploader("Upload Video", type=['mp4', 'avi', 'mov', 'mkv', 'flv', 'wmv', 'webm'], key="audio_upload")
         if uploaded:
-            # Check file size
             if uploaded.size > MAX_FILE_SIZE:
                 st.error(f"❌ File too large! Maximum size: {MAX_FILE_SIZE / 1024 / 1024:.0f}MB")
                 st.stop()
@@ -498,7 +546,7 @@ with tab3:
     with c1:
         fmt = st.selectbox("Format", ["MP3", "M4A", "WAV"], key="audio_format")
     with c2:
-        qual = st.selectbox("Quality", ["Best (320kbps)", "High (256kbps)", "Medium (192kbps)"], key="audio_quality")
+        qual = st.selectbox("Quality", ["320", "256", "192", "128"], key="audio_quality")
     
     st.markdown("<br>", unsafe_allow_html=True)
     disabled = (src == "🌐 From URL" and not audio_url) or (src == "📁 Upload File" and not uploaded)
@@ -516,15 +564,12 @@ with tab3:
             
             with st.status("🎵 Extracting...", expanded=True) as status:
                 try:
-                    quality = '320' if 'Best' in qual else ('256' if 'High' in qual else '192')
-                    
-                    # Validate format
                     if fmt not in ['MP3', 'M4A', 'WAV']:
                         st.error("❌ Invalid audio format!")
                         st.stop()
                     
                     opts = {
-                        'format': 'bestaudio',
+                        'format': 'bestaudio/best',
                         'outtmpl': os.path.join(os.getcwd(), DOWNLOAD_DIR, f'%(title)s.{fmt.lower()}'),
                         'restrictfilenames': True,
                         'max_filesize': MAX_FILE_SIZE,
@@ -534,14 +579,16 @@ with tab3:
                         opts['postprocessors'] = [{
                             'key': 'FFmpegExtractAudio',
                             'preferredcodec': fmt.lower(),
-                            'preferredquality': quality
+                            'preferredquality': qual
                         }]
+                        opts['keepvideo'] = False
                     
                     status.write("📡 Connecting...")
                     with YoutubeDL(opts) as ydl:
                         status.write("⬇️ Downloading...")
                         result = ydl.extract_info(audio_url, download=True)
-                        filename = ydl.prepare_filename(result).rsplit('.', 1)[0] + f'.{fmt.lower()}'
+                        filename = ydl.prepare_filename(result)
+                        filename = os.path.splitext(filename)[0] + f'.{fmt.lower()}'
                     
                     status.update(label="✅ Complete!", state="complete")
                     st.success(f"🎉 Extracted: **{sanitize_filename(result.get('title', 'Unknown'))}**")
@@ -571,7 +618,6 @@ with tab3:
                 with st.status("🎵 Extracting...", expanded=True) as status:
                     temp = None
                     try:
-                        # Sanitize uploaded filename
                         safe_filename = sanitize_filename(uploaded.name)
                         temp = os.path.join(DOWNLOAD_DIR, f"temp_{hashlib.md5(safe_filename.encode()).hexdigest()}_{safe_filename}")
                         
@@ -582,18 +628,16 @@ with tab3:
                         base = os.path.splitext(safe_filename)[0]
                         output = f"{base}_audio.{fmt.lower()}"
                         out_path = os.path.join(DOWNLOAD_DIR, output)
-                        quality = '320' if 'Best' in qual else ('256' if 'High' in qual else '192')
                         
                         status.write("🎵 Extracting...")
                         
-                        # Validate format
                         if fmt not in ['MP3', 'M4A', 'WAV']:
                             raise Exception("Invalid format")
                         
                         codec = {'MP3': 'libmp3lame', 'M4A': 'aac', 'WAV': 'pcm_s16le'}
                         cmd = ['ffmpeg', '-i', temp, '-vn', '-acodec', codec[fmt]]
                         if fmt != 'WAV':
-                            cmd.extend(['-b:a', f'{quality}k'])
+                            cmd.extend(['-b:a', f'{qual}k'])
                         cmd.extend(['-y', out_path])
                         
                         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
@@ -628,59 +672,6 @@ with tab3:
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# Quick Tips Section
-st.markdown("""
-<div class='guide-section'>
-    <h2 class='guide-title'>💡 Pro Tips & Tricks</h2>
-    <div class='tip-box'>
-        <strong>🎯 Step 1: Copy Video URL</strong><br>
-        Open your favorite video on YouTube, TikTok, Instagram, or any supported platform. Click the <code>Share</code> button and copy the video link. Paste it in the URL field above!
-    </div>
-    <div class='tip-box'>
-        <strong>⚡ Step 2: Choose Quality</strong><br>
-        For YouTube videos, select your preferred quality: <code>Best</code> for maximum quality, <code>1080p</code> for HD, <code>720p</code> for balanced size/quality, or <code>480p</code> for smaller files.
-    </div>
-    <div class='tip-box'>
-        <strong>🎵 Step 3: Audio Only Option</strong><br>
-        Want just the audio? Switch to <code>Audio (MP3)</code> format to extract music, podcasts, or soundtracks from any video. Perfect for music lovers!
-    </div>
-    <div class='tip-box'>
-        <strong>📋 Batch Downloads</strong><br>
-        Need multiple videos? Use the <code>Batch Download</code> tab! Paste one URL per line (max 50 videos) and download them all at once. Great for playlists and collections!
-    </div>
-    <div class='tip-box'>
-        <strong>🔒 Privacy & Security</strong><br>
-        Your downloads are processed securely with SSL encryption. Files auto-delete after 1 hour. We don't store your URLs or videos permanently. Your privacy is 100% protected!
-    </div>
-    <div class='tip-box'>
-        <strong>⚠️ Troubleshooting</strong><br>
-        If download fails, try: (1) Check if URL is valid, (2) Update yt-dlp: <code>pip install -U yt-dlp</code>, (3) Some videos may be geo-restricted, private, or exceed 500MB limit.
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# Supported Platforms Section
-st.markdown("""
-<div class='guide-section'>
-    <h2 class='guide-title'>🌐 Supported Platforms</h2>
-    <div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 25px 0;'>
-        <div style='background: linear-gradient(135deg, #FF0000, #CC0000); padding: 20px; border-radius: 15px; text-align: center; color: white; font-weight: 700; box-shadow: 0 5px 20px rgba(255,0,0,0.3);'>📺 YouTube</div>
-        <div style='background: linear-gradient(135deg, #1877F2, #0d5dbf); padding: 20px; border-radius: 15px; text-align: center; color: white; font-weight: 700; box-shadow: 0 5px 20px rgba(24,119,242,0.3);'>💥 Facebook</div>
-        <div style='background: linear-gradient(135deg, #E4405F, #c13584); padding: 20px; border-radius: 15px; text-align: center; color: white; font-weight: 700; box-shadow: 0 5px 20px rgba(228,64,95,0.3);'>📷 Instagram</div>
-        <div style='background: linear-gradient(135deg, #000000, #fe2c55); padding: 20px; border-radius: 15px; text-align: center; color: white; font-weight: 700; box-shadow: 0 5px 20px rgba(254,44,85,0.3);'>🎵 TikTok</div>
-        <div style='background: linear-gradient(135deg, #1DA1F2, #0d8bd9); padding: 20px; border-radius: 15px; text-align: center; color: white; font-weight: 700; box-shadow: 0 5px 20px rgba(29,161,242,0.3);'>🦅 Twitter/X</div>
-        <div style='background: linear-gradient(135deg, #1ab7ea, #1589c2); padding: 20px; border-radius: 15px; text-align: center; color: white; font-weight: 700; box-shadow: 0 5px 20px rgba(26,183,234,0.3);'>🎬 Vimeo</div>
-        <div style='background: linear-gradient(135deg, #FF0000, #990000); padding: 20px; border-radius: 15px; text-align: center; color: white; font-weight: 700; box-shadow: 0 5px 20px rgba(255,0,0,0.3);'>📹 Twitch</div>
-        <div style='background: linear-gradient(135deg, #FF4500, #cc3700); padding: 20px; border-radius: 15px; text-align: center; color: white; font-weight: 700; box-shadow: 0 5px 20px rgba(255,69,0,0.3);'>🔶 Reddit</div>
-        <div style='background: linear-gradient(135deg, #0077B5, #005582); padding: 20px; border-radius: 15px; text-align: center; color: white; font-weight: 700; box-shadow: 0 5px 20px rgba(0,119,181,0.3);'>💼 LinkedIn</div>
-        <div style='background: linear-gradient(135deg, #667eea, #764ba2); padding: 20px; border-radius: 15px; text-align: center; color: white; font-weight: 700; box-shadow: 0 5px 20px rgba(102,126,234,0.3);'>🌐 +1000 More</div>
-    </div>
-    <div style='text-align: center; color: #2c3e50; font-weight: 600; margin-top: 20px; font-size: 1.1em;'>
-        ✅ Dailymotion • Soundcloud • Bandcamp • Mixcloud • Spotify • Tumblr & Many More!
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
 # Download History
 if st.session_state.download_history:
     st.markdown("<div class='guide-section'>", unsafe_allow_html=True)
@@ -692,96 +683,5 @@ if st.session_state.download_history:
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
-# Features Section
-st.markdown("""
-<div class='guide-section'>
-    <h2 class='guide-title'>✨ Why Choose VidGrabX?</h2>
-    <div class='feature-grid'>
-        <div class='feature-card'>
-            <div class='feature-icon'>⚡</div>
-            <div class='feature-title'>Lightning Fast</div>
-            <div class='feature-desc'>Multi-threaded downloads with optimized performance</div>
-        </div>
-        <div class='feature-card'>
-            <div class='feature-icon'>📋</div>
-            <div class='feature-title'>Batch Downloads</div>
-            <div class='feature-desc'>Download up to 50 videos simultaneously</div>
-        </div>
-        <div class='feature-card'>
-            <div class='feature-icon'>🎵</div>
-            <div class='feature-title'>Audio Extraction</div>
-            <div class='feature-desc'>Extract MP3, M4A, WAV from any video</div>
-        </div>
-        <div class='feature-card'>
-            <div class='feature-icon'>🌐</div>
-            <div class='feature-title'>1000+ Sites</div>
-            <div class='feature-desc'>Support for all major platforms</div>
-        </div>
-        <div class='feature-card'>
-            <div class='feature-icon'>🔒</div>
-            <div class='feature-title'>100% Secure</div>
-            <div class='feature-desc'>SSL encrypted with auto-cleanup</div>
-        </div>
-        <div class='feature-card'>
-            <div class='feature-icon'>📱</div>
-            <div class='feature-title'>Fully Responsive</div>
-            <div class='feature-desc'>Works on mobile, tablet, PC, TV</div>
-        </div>
-        <div class='feature-card'>
-            <div class='feature-icon'>🎨</div>
-            <div class='feature-title'>HD Quality</div>
-            <div class='feature-desc'>Up to 4K/8K video downloads</div>
-        </div>
-        <div class='feature-card'>
-            <div class='feature-icon'>🚀</div>
-            <div class='feature-title'>No Limits</div>
-            <div class='feature-desc'>Unlimited downloads, forever free</div>
-        </div>
-        <div class='feature-card'>
-            <div class='feature-icon'>💾</div>
-            <div class='feature-title'>Direct Download</div>
-            <div class='feature-desc'>Save directly to your device</div>
-        </div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# FAQ Section
-st.markdown("""
-<div class='guide-section'>
-    <h2 class='guide-title'>❓ Frequently Asked Questions</h2>
-    <div style='margin: 25px 0;'>
-        <div style='background: white; padding: 25px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); border-left: 5px solid #667eea;'>
-            <h3 style='color: #667eea; margin-bottom: 10px; font-size: 1.2em;'>🤔 Is VidGrabX free to use?</h3>
-            <p style='color: #2c3e50; margin: 0; line-height: 1.8;'>Yes! VidGrabX is 100% free with no hidden costs, subscriptions, or premium plans. Download unlimited videos forever!</p>
-        </div>
-        <div style='background: white; padding: 25px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); border-left: 5px solid #28a745;'>
-            <h3 style='color: #28a745; margin-bottom: 10px; font-size: 1.2em;'>🔐 Is it safe and legal?</h3>
-            <p style='color: #2c3e50; margin: 0; line-height: 1.8;'>VidGrabX is safe to use with SSL encryption and auto-cleanup. However, please respect copyright laws and only download videos you have permission to download or for personal use.</p>
-        </div>
-        <div style='background: white; padding: 25px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); border-left: 5px solid #ffc107;'>
-            <h3 style='color: #ffc107; margin-bottom: 10px; font-size: 1.2em;'>⚡ How fast are downloads?</h3>
-            <p style='color: #2c3e50; margin: 0; line-height: 1.8;'>Download speed depends on your internet connection and the source server. We optimize for maximum speed without compromising quality! Rate limiting ensures fair usage.</p>
-        </div>
-        <div style='background: white; padding: 25px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); border-left: 5px solid #dc3545;'>
-            <h3 style='color: #dc3545; margin-bottom: 10px; font-size: 1.2em;'>📱 Does it work on mobile?</h3>
-            <p style='color: #2c3e50; margin: 0; line-height: 1.8;'>Absolutely! VidGrabX is fully responsive and works perfectly on smartphones, tablets, laptops, and desktop computers.</p>
-        </div>
-        <div style='background: white; padding: 25px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); border-left: 5px solid #17a2b8;'>
-            <h3 style='color: #17a2b8; margin-bottom: 10px; font-size: 1.2em;'>🎵 Can I extract audio only?</h3>
-            <p style='color: #2c3e50; margin: 0; line-height: 1.8;'>Yes! Use our Audio Extractor tab to convert any video to MP3, M4A, or WAV format. Perfect for music and podcasts!</p>
-        </div>
-        <div style='background: white; padding: 25px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); border-left: 5px solid #6f42c1;'>
-            <h3 style='color: #6f42c1; margin-bottom: 10px; font-size: 1.2em;'>🌍 Which platforms are supported?</h3>
-            <p style='color: #2c3e50; margin: 0; line-height: 1.8;'>We support 1000+ platforms including YouTube, TikTok, Facebook, Instagram, Twitter, Vimeo, Dailymotion, Twitch, Reddit, and many more!</p>
-        </div>
-        <div style='background: white; padding: 25px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); border-left: 5px solid #e83e8c;'>
-            <h3 style='color: #e83e8c; margin-bottom: 10px; font-size: 1.2em;'>🗑️ Are my files stored?</h3>
-            <p style='color: #2c3e50; margin: 0; line-height: 1.8;'>No! All downloaded files are automatically deleted from our servers after 1 hour for your privacy and security. We never store your content permanently.</p>
-        </div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
 # Footer
-st.markdown("<div style='text-align:center; color:#fff; padding: 50px; background: rgba(0,0,0,0.3); border-radius: 25px; margin-top: 50px; backdrop-filter: blur(15px);'><div style='font-size:3.5em; margin-bottom: 20px; filter: drop-shadow(0 0 15px rgba(255,255,255,0.4));'>🎯 <strong>VidGrabX</strong></div><div style='font-size:1.3em; opacity:0.95; margin-bottom: 20px; font-weight: 600; line-height: 1.6;'>The Ultimate Free Video Downloader<br>🔒 Secured • 🚀 Fast • 🛡️ Private</div><div style='font-size:1em; opacity:0.9; margin: 20px 0;'>Powered by yt-dlp • Streamlit • Python • FFmpeg</div><div style='font-size:1em; opacity:0.9; margin: 20px 0;'>🌐 YouTube • TikTok • Facebook • Instagram • Twitter • Vimeo • 1000+ More</div><div style='font-size:0.95em; opacity:0.8; margin-top: 25px; padding-top: 25px; border-top: 2px solid rgba(255,255,255,0.2);'>✅ SSL Encrypted • 🗑️ Auto-Cleanup • 🚫 No Tracking • 📊 Rate Limited<br>© 2025 VidGrabX • Free & Open Source Forever 🚀<br><small style='opacity: 0.7;'>Made with ❤️ for video enthusiasts worldwide</small></div></div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align:center; color:#fff; padding: 50px; background: rgba(0,0,0,0.3); border-radius: 25px; margin-top: 50px; backdrop-filter: blur(15px);'><div style='font-size:3.5em; margin-bottom: 20px; filter: drop-shadow(0 0 15px rgba(255,255,255,0.4));'>🎯 <strong>VidGrabX</strong></div><div style='font-size:1.3em; opacity:0.95; margin-bottom: 20px; font-weight: 600; line-height: 1.6;'>The Ultimate Free Video Downloader<br>🔒 Secured • 🚀 Fast • 🛡️ Private</div><div style='font-size:1em; opacity:0.9; margin: 20px 0;'>Powered by yt-dlp • Streamlit • Python • FFmpeg</div><div style='font-size:0.95em; opacity:0.8; margin-top: 25px; padding-top: 25px; border-top: 2px solid rgba(255,255,255,0.2);'>✅ SSL Encrypted • 🗑️ Auto-Cleanup • 🚫 No Tracking • 📊 Rate Limited<br>© 2025 VidGrabX • Free & Open Source Forever 🚀</div></div>", unsafe_allow_html=True)
