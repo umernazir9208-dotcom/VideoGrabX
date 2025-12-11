@@ -199,31 +199,64 @@ def add_to_history(title, url, format_type):
     if len(st.session_state.download_history) > 15:
         st.session_state.download_history = st.session_state.download_history[:15]
 
-def get_ydl_opts(quality="best", is_audio=False):
+ddef get_ydl_opts(quality="best", is_audio=False):
+    """Get secure yt-dlp options with YouTube 403 fix"""
     opts = {
         'outtmpl': os.path.join(os.getcwd(), DOWNLOAD_DIR, '%(title)s.%(ext)s'),
-        'noplaylist': True, 'socket_timeout': 60, 'retries': 5, 'restrictfilenames': True,
-        'no_color': True, 'max_filesize': MAX_FILE_SIZE, 'nocheckcertificate': False,
-        'extractor_args': {'youtube': {'player_client': ['android', 'web'], 'skip': ['hls', 'dash']}},
+        'noplaylist': True,
+        'socket_timeout': 60,
+        'retries': 5,
+        'restrictfilenames': True,
+        'no_color': True,
+        'max_filesize': MAX_FILE_SIZE,
+        'nocheckcertificate': False,
+        
+        # CRITICAL FIX FOR YOUTUBE 403
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android_embedded', 'android_music', 'android_creator', 'android', 'web'],
+                'skip': ['hls', 'dash', 'translated_subs'],
+                'player_skip': ['webpage', 'configs', 'js']
+            }
+        },
+        
+        # Android client headers (works better than web)
         'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-us,en;q=0.5', 'Accept-Encoding': 'gzip, deflate',
-            'DNT': '1', 'Connection': 'keep-alive', 'Upgrade-Insecure-Requests': '1'
-        }
+            'User-Agent': 'com.google.android.youtube/18.11.34 (Linux; U; Android 11; en_US) gzip',
+            'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate',
+            'X-YouTube-Client-Name': '3',
+            'X-YouTube-Client-Version': '18.11.34'
+        },
+        
+        # Additional fixes
+        'extractor_retries': 3,
+        'fragment_retries': 10,
+        'skip_unavailable_fragments': True
     }
+    
     if is_audio:
         opts['format'] = 'bestaudio/best'
         if check_ffmpeg():
-            opts['postprocessors'] = [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}]
+            opts['postprocessors'] = [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192'
+            }]
     else:
-        format_map = {
-            "Best Quality": 'bestvideo+bestaudio/best',
-            "1080p": 'bestvideo[height<=1080]+bestaudio/best[height<=1080]',
-            "720p": 'bestvideo[height<=720]+bestaudio/best[height<=720]',
-            "480p": 'bestvideo[height<=480]+bestaudio/best[height<=480]'
-        }
-        opts['format'] = format_map.get(quality, 'bestvideo+bestaudio/best')
+        # Use 'best' instead of 'bestvideo+bestaudio' to avoid 403
+        if quality == "Best Quality":
+            opts['format'] = 'best[height<=1080]/best'
+        elif quality == "1080p":
+            opts['format'] = 'best[height<=1080]/bestvideo[height<=1080]+bestaudio/best'
+        elif quality == "720p":
+            opts['format'] = 'best[height<=720]/bestvideo[height<=720]+bestaudio/best'
+        elif quality == "480p":
+            opts['format'] = 'best[height<=480]/bestvideo[height<=480]+bestaudio/best'
+        else:
+            opts['format'] = 'best'
+    
     return opts
 
 cleanup_old_files()
@@ -512,3 +545,4 @@ st.markdown("</div>", unsafe_allow_html=True)
 # KEEP EVERYTHING FROM LINE 500+ OF YOUR ORIGINAL FILE
 
 st.markdown("<div style='text-align:center; color:#fff; padding: 50px; background: rgba(0,0,0,0.3); border-radius: 25px; margin-top: 50px;'><div style='font-size:3.5em; margin-bottom: 20px;'>🎯 <strong>VidGrabX</strong></div><div style='font-size:1.3em;'>✅ Fixed for YouTube • Updated yt-dlp • 100% Working</div></div>", unsafe_allow_html=True)
+
