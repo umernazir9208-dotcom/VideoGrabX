@@ -1,4 +1,4 @@
 streamlit>=1.28.0
-yt-dlp>=2024.12.6
+git+https://github.com/yt-dlp/yt-dlp.git@master
 requests>=2.31.0
 urllib3>=2.0.0
