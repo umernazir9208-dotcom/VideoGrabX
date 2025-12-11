@@ -199,7 +199,7 @@ def add_to_history(title, url, format_type):
     if len(st.session_state.download_history) > 15:
         st.session_state.download_history = st.session_state.download_history[:15]
 
-ddef get_ydl_opts(quality="best", is_audio=False):
+def get_ydl_opts(quality="best", is_audio=False):
     """Get secure yt-dlp options with YouTube 403 fix"""
     opts = {
         'outtmpl': os.path.join(os.getcwd(), DOWNLOAD_DIR, '%(title)s.%(ext)s'),
@@ -545,4 +545,5 @@ st.markdown("</div>", unsafe_allow_html=True)
 # KEEP EVERYTHING FROM LINE 500+ OF YOUR ORIGINAL FILE
 
 st.markdown("<div style='text-align:center; color:#fff; padding: 50px; background: rgba(0,0,0,0.3); border-radius: 25px; margin-top: 50px;'><div style='font-size:3.5em; margin-bottom: 20px;'>🎯 <strong>VidGrabX</strong></div><div style='font-size:1.3em;'>✅ Fixed for YouTube • Updated yt-dlp • 100% Working</div></div>", unsafe_allow_html=True)
+
 
